@@ -26,4 +26,5 @@ COPY --from=frontend-build /build/dist ./public
 
 ENV NODE_ENV=production
 EXPOSE 8000
-CMD ["node", "dist/index.js"]
+# Run idempotent DB migration before starting (fails deploy loudly on error)
+CMD ["sh", "-c", "node dist/db/migrate.js && node dist/index.js"]
