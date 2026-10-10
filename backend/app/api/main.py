@@ -295,6 +295,21 @@ async def reopen_task(
     await db.refresh(task)
     return task
 
+@router.delete("/tasks/{task_id}")
+async def delete_task(
+    task_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.user_id == user.id))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    await db.delete(task)
+    await db.commit()
+    return {"detail": "Task deleted"}
+
 # ===== SCANNER ROUTES =====
 
 @router.post("/scanner/scan", response_model=ScanPreviewResponse)
