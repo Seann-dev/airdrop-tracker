@@ -1,6 +1,5 @@
 import ipaddress
 import socket
-import asyncio
 from urllib.parse import urlparse
 from app.config import settings
 
@@ -53,36 +52,17 @@ def validate_url_security(url: str) -> str:
 
 async def safe_fetch_url(url: str) -> tuple[int, str, dict]:
     """
-    Safely fetches a URL respecting SSRF protections using curl for system proxy stability.
+    Safely fetches a URL respecting SSRF protections using httpx (no system deps).
     """
+    import httpx
     validate_url_security(url)
-    
-    proc = await asyncio.create_subprocess_exec(
-        "curl", "-s", "-i", "-L", "--max-time", "15", "--max-redirs", "5", url,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-    stdout_bytes, stderr_bytes = await proc.communicate()
-    
-    if proc.returncode != 0:
-        raise Exception(f"Failed to fetch URL: curl exit code {proc.returncode}")
-        
-    raw_response = stdout_bytes.decode('utf-8', errors='ignore')
-    
-    parts = raw_response.split('\r\n\r\n')
-    body = parts[-1]
-    header_block = parts[-2] if len(parts) > 1 else ""
-    
-    status_code = 200
-    headers = {}
-    lines = header_block.split('\r\n')
-    if lines and lines[0].startswith('HTTP/'):
-        try:
-            status_code = int(lines[0].split(' ')[1])
-        except Exception:
-            pass
-            
+
+    async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
+        resp = await client.get(url, headers={"User-Agent": "AirdropTracker/1.0"})
+        body = resp.text
+        headers = dict(resp.headers)
+
     if len(body.encode("utf-8")) > settings.SSRF_MAX_CONTENT_LENGTH:
         raise ValueError(f"Response body exceeded limit of {settings.SSRF_MAX_CONTENT_LENGTH} bytes.")
-        
-    return status_code, body, headers
+
+    return resp.status_code, body, headers
