@@ -1,36 +1,28 @@
-# Airdrop Tracker AI — single-service Railway image.
-# Serves the built React SPA and proxies /api/* to the FastAPI backend,
-# so the frontend needs no API-URL config (it calls relative /api/v1).
+# Airdrop Tracker v2 — Express API + React SPA, single Railway service.
+# Frontend calls same-origin /api/* (proxied by Express in production).
 
-# ---- Stage 1: build the frontend ----
+# ---- Stage 1: build frontend ----
 FROM node:24-slim AS frontend-build
 WORKDIR /build
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 COPY frontend/ ./
+# Publishable key is public by design; injected at build time
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
 RUN npm run build
 
-# ---- Stage 2: runtime ----
-FROM python:3.14-slim
+# ---- Stage 2: backend runtime ----
+FROM node:24-slim
 WORKDIR /app
+COPY backend/package.json backend/package-lock.json* ./
+RUN npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
+COPY backend/ ./
+RUN npm run build
 
-# curl is needed by the campaign scanner (ssrf_guard.safe_fetch_url)
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Serve the SPA from Express (static) — no separate frontend server needed
+COPY --from=frontend-build /build/dist ./public
 
-COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY backend/ ./backend/
-COPY --from=frontend-build /build/dist ./frontend/dist
-COPY frontend/server.py ./frontend/server.py
-COPY railway-start.sh ./railway-start.sh
-RUN chmod +x ./railway-start.sh
-
-ENV PYTHONPATH=/app/backend
-
-# Data directory for SQLite (mount a Railway volume here for persistence)
-RUN mkdir -p /data
-
-# Railway injects $PORT at runtime; railway-start.sh maps it to the SPA server.
+ENV NODE_ENV=production
 EXPOSE 8000
-CMD ["./railway-start.sh"]
+CMD ["node", "dist/index.js"]
