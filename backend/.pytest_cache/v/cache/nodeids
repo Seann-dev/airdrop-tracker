@@ -1,4 +1,5 @@
 [
+  "tests/test_adapters.py::test_actionability_classification_and_deadline_fixture",
   "tests/test_adapters.py::test_galxe_adapter",
   "tests/test_adapters.py::test_generic_adapter",
   "tests/test_adapters.py::test_generic_adapter_json_ld_and_deadline",
