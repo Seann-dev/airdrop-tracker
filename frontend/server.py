@@ -22,10 +22,10 @@ class SPAHandler(http.server.SimpleHTTPRequestHandler):
         if self.path.startswith("/api/"):
             self.proxy_api()
             return
-        
+
         # Serve static files or fallback to index.html for SPA routes
         file_path = DIST_DIR / self.path.lstrip("/")
-        
+
         if file_path.is_file():
             self.serve_file(file_path)
         else:
@@ -64,7 +64,6 @@ class SPAHandler(http.server.SimpleHTTPRequestHandler):
         if self.path.startswith("/api/"):
             self.proxy_api()
             return
-        # CORS preflight for static content
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
