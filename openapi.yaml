@@ -1,0 +1,275 @@
+openapi: 3.1.0
+info:
+  title: Airdrop Tracker API
+  version: 1.0.0
+  description: >
+    Personal airdrop tracker. All /api/airdrops endpoints require a Clerk
+    session (same-origin cookie). The owner ID is taken from the verified
+    session server-side; clients never supply it.
+servers:
+  - url: /api
+security:
+  - clerkSession: []
+paths:
+  /airdrops:
+    get:
+      summary: List the current user's airdrop records
+      parameters:
+        - $ref: '#/components/parameters/StatusFilter'
+        - $ref: '#/components/parameters/NetworkFilter'
+        - $ref: '#/components/parameters/SearchQuery'
+        - $ref: '#/components/parameters/SortParam'
+      responses:
+        '200':
+          description: List of records
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Airdrop' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      summary: Create an airdrop record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AirdropCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Airdrop' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /airdrops/summary:
+    get:
+      summary: Totals scoped to the current user
+      responses:
+        '200':
+          description: Summary counts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Summary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /airdrops/import:
+    post:
+      summary: Idempotent import of legacy records
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImportBatch' }
+      responses:
+        '200':
+          description: Import result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /airdrops/draft:
+    post:
+      summary: Fetch a project URL and return an editable draft (not saved)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri }
+      responses:
+        '200':
+          description: Draft extracted from the page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Draft' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422':
+          description: Extraction failed; manual entry fallback suggested
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  detail: { type: string }
+                  fallback: { type: string }
+  /airdrops/{id}:
+    patch:
+      summary: Edit the current user's record
+      parameters:
+        - $ref: '#/components/parameters/RecordId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AirdropUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Airdrop' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      summary: Delete the current user's record
+      parameters:
+        - $ref: '#/components/parameters/RecordId'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    clerkSession:
+      type: apiKey
+      in: cookie
+      name: __session
+      description: Clerk session cookie (same-origin)
+  parameters:
+    RecordId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    StatusFilter:
+      name: status
+      in: query
+      schema: { type: string, enum: [Watching, Active, Completed, Claimed, Not eligible] }
+    NetworkFilter:
+      name: network
+      in: query
+      schema: { type: string }
+    SearchQuery:
+      name: search
+      in: query
+      schema: { type: string }
+    SortParam:
+      name: sort
+      in: query
+      schema: { type: string, enum: [updated, created, deadline], default: updated }
+  responses:
+    Unauthorized:
+      description: Missing or invalid session
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string }
+    BadRequest:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string }
+              details: { type: object }
+    NotFound:
+      description: Record not found or not owned by user
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string }
+  schemas:
+    TaskItem:
+      type: object
+      required: [id, title, done]
+      properties:
+        id: { type: string }
+        title: { type: string, maxLength: 500 }
+        done: { type: boolean }
+    Airdrop:
+      type: object
+      required: [id, projectName, network, status, deadline, officialLink, category, notes, tasks, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectName: { type: string }
+        network: { type: string }
+        status: { type: string, enum: [Watching, Active, Completed, Claimed, Not eligible] }
+        deadline: { type: [string, 'null'], format: date-time }
+        officialLink: { type: string }
+        category: { type: string }
+        notes: { type: string }
+        tasks: { type: array, items: { $ref: '#/components/schemas/TaskItem' } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AirdropCreate:
+      type: object
+      required: [projectName]
+      properties:
+        projectName: { type: string, maxLength: 200 }
+        network: { type: string, maxLength: 100 }
+        status: { type: string, enum: [Watching, Active, Completed, Claimed, Not eligible] }
+        deadline: { type: [string, 'null'], format: date-time }
+        officialLink: { type: string, maxLength: 2000 }
+        category: { type: string, maxLength: 100 }
+        notes: { type: string, maxLength: 5000 }
+        tasks: { type: array, items: { $ref: '#/components/schemas/TaskItem' }, maxItems: 200 }
+    AirdropUpdate:
+      type: object
+      properties:
+        projectName: { type: string, maxLength: 200 }
+        network: { type: string, maxLength: 100 }
+        status: { type: string, enum: [Watching, Active, Completed, Claimed, Not eligible] }
+        deadline: { type: [string, 'null'], format: date-time }
+        officialLink: { type: string, maxLength: 2000 }
+        category: { type: string, maxLength: 100 }
+        notes: { type: string, maxLength: 5000 }
+        tasks: { type: array, items: { $ref: '#/components/schemas/TaskItem' }, maxItems: 200 }
+    ImportBatch:
+      type: object
+      required: [records]
+      properties:
+        records:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            allOf:
+              - $ref: '#/components/schemas/AirdropCreate'
+              - type: object
+                required: [legacyId]
+                properties:
+                  legacyId: { type: string }
+    ImportResult:
+      type: object
+      properties:
+        imported: { type: integer }
+        skipped: { type: integer }
+    Summary:
+      type: object
+      properties:
+        total: { type: integer }
+        active: { type: integer }
+        completed: { type: integer }
+        upcomingDeadlines: { type: integer }
+        byStatus: { type: object, additionalProperties: { type: integer } }
+    Draft:
+      type: object
+      properties:
+        projectName: { type: string }
+        description: { type: string }
+        officialLink: { type: string }
+        deadline: { type: [string, 'null'], format: date-time }
+        tasks: { type: array, items: { $ref: '#/components/schemas/TaskItem' } }
+        foundDeadline: { type: boolean }
+        foundTasks: { type: boolean }
+        sourceAttribution: { type: string }
