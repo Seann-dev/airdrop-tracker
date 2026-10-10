@@ -14,6 +14,9 @@ RUN npm run build
 FROM python:3.14-slim
 WORKDIR /app
 
+# curl is needed by the campaign scanner (ssrf_guard.safe_fetch_url)
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
 COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
