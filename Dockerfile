@@ -16,9 +16,10 @@ RUN npm run build
 FROM node:24-slim
 WORKDIR /app
 COPY backend/package.json backend/package-lock.json* ./
-RUN npm ci --omit=dev --no-audit --no-fund || npm install --omit=dev --no-audit --no-fund
+# Install all deps (incl. typescript) to compile, then prune dev deps
+RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 COPY backend/ ./
-RUN npm run build
+RUN npm run build && npm prune --omit=dev --no-audit --no-fund
 
 # Serve the SPA from Express (static) — no separate frontend server needed
 COPY --from=frontend-build /build/dist ./public
