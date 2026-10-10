@@ -1,31 +1,34 @@
-import axios from 'axios';
+import type { Airdrop, AirdropCreate, AirdropUpdate, ImportRecord, ImportResult, Summary, Draft } from './types';
 
-export const API_BASE_URL = '/api/v1';
+async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  // Same-origin: Clerk session cookie is sent automatically. No bearer tokens.
+  const res = await fetch(`/api${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    credentials: 'same-origin',
+  });
+  if (res.status === 401) throw new Error('Signed out — please sign in again.');
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed (${res.status})`);
+  }
+  return res.json() as Promise<T>;
+}
 
-export const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
+export const api = {
+  list: (params: Record<string, string> = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return req<Airdrop[]>(`/airdrops${q ? `?${q}` : ''}`);
   },
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Clear token if invalid and on website
-      if (!window.location.pathname.startsWith('/app')) {
-        // localStorage.removeItem('token');
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+  summary: () => req<Summary>('/airdrops/summary'),
+  create: (data: AirdropCreate) =>
+    req<Airdrop>('/airdrops', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: AirdropUpdate) =>
+    req<Airdrop>(`/airdrops/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  remove: (id: string) =>
+    req<{ deleted: boolean }>(`/airdrops/${id}`, { method: 'DELETE' }),
+  importBatch: (records: ImportRecord[]) =>
+    req<ImportResult>('/airdrops/import', { method: 'POST', body: JSON.stringify({ records }) }),
+  draft: (url: string) =>
+    req<Draft>('/airdrops/draft', { method: 'POST', body: JSON.stringify({ url }) }),
+};
