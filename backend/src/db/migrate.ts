@@ -26,7 +26,9 @@ async function main() {
     console.log('[migrate] database connectivity OK');
 
     // Run the idempotent schema migration
-    const migrationPath = path.join(__dirname, '..', 'drizzle', '0000_regular_blue_shield.sql');
+    // Compiled script lives at <app>/dist/db/migrate.js, so the drizzle
+    // directory (copied to <app>/drizzle by the Dockerfile) is two levels up.
+    const migrationPath = path.join(__dirname, '..', '..', 'drizzle', '0000_regular_blue_shield.sql');
     const migrationSql = fs.readFileSync(migrationPath, 'utf-8');
     await sql.unsafe(migrationSql);
     console.log('[migrate] schema migration applied (idempotent)');
