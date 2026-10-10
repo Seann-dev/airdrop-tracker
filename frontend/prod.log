@@ -1,3 +1,0 @@
-Production frontend server running on http://localhost:5174
-Serving /home/hatch/airdrop-tracker/frontend/dist
-Proxying /api/* to http://localhost:8000
