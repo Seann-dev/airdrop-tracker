@@ -7,9 +7,14 @@ WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 COPY frontend/ ./
-# Publishable key is public by design; injected at build time
+# Publishable key is public by design; injected at build time.
+# Railway exposes service Variables during the build phase, so setting
+# VITE_CLERK_PUBLISHABLE_KEY as a regular Variable is enough — no separate
+# "Build Arguments" UI option needed. Docker picks it up via ARG below.
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+# Fail fast with a clear message instead of shipping a broken app
+RUN if [ -z "$VITE_CLERK_PUBLISHABLE_KEY" ]; then echo "ERROR: VITE_CLERK_PUBLISHABLE_KEY is not set. Add it as a Railway Variable (it is exposed at build time)." >&2; exit 1; fi
 RUN npm run build
 
 # ---- Stage 2: backend runtime ----
