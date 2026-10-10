@@ -31,6 +31,34 @@ class SPAHandler(http.server.SimpleHTTPRequestHandler):
         else:
             # SPA fallback - serve index.html for client-side routes
             self.serve_file(DIST_DIR / "index.html")
+
+    def do_POST(self):
+        if self.path.startswith("/api/"):
+            self.proxy_api()
+            return
+        self.send_response(404)
+        self.end_headers()
+
+    def do_PUT(self):
+        if self.path.startswith("/api/"):
+            self.proxy_api()
+            return
+        self.send_response(404)
+        self.end_headers()
+
+    def do_DELETE(self):
+        if self.path.startswith("/api/"):
+            self.proxy_api()
+            return
+        self.send_response(404)
+        self.end_headers()
+
+    def do_PATCH(self):
+        if self.path.startswith("/api/"):
+            self.proxy_api()
+            return
+        self.send_response(404)
+        self.end_headers()
     
     def proxy_api(self):
         try:
