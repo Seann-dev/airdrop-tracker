@@ -7,7 +7,7 @@ class Settings:
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080")) # 7 days
     
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./airdrop_tracker.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:////data/airdrop_tracker.db")
     
     # Telegram Bot & Mini App
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
