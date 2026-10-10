@@ -25,6 +25,9 @@ RUN chmod +x ./railway-start.sh
 
 ENV PYTHONPATH=/app/backend
 
+# Data directory for SQLite (mount a Railway volume here for persistence)
+RUN mkdir -p /data
+
 # Railway injects $PORT at runtime; railway-start.sh maps it to the SPA server.
 EXPOSE 8000
 CMD ["./railway-start.sh"]
